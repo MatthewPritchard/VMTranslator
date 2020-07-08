@@ -2,6 +2,7 @@
 import os
 from collections import Counter
 
+
 class Writer():
     '''Writes translated commands to a given output file'''
     stacks = {
@@ -33,23 +34,23 @@ class Writer():
                         "args": ["Sys.init", "0"]})
 
     def writeInit(self):
-        self.file.write( ("@256 // init\n"
-                "D=A\n"
-                "@SP // SP = 256\n"
-                "M=D\n"
-                "D=-1\n"
-                "@LCL // LCL = -1\n"
-                "M=D\n"
-                "D=D-1\n"
-                "@ARG // ARG = -2\n"
-                "M=D\n"
-                "D=D-1\n"
-                "@THIS // THIS = -3\n"
-                "M=D\n"
-                "D=D-1\n"
-                "@THAT // THAT = -4\n"
-                "M=D\n"
-                "D=D-1\n") )
+        self.file.write(("@256 // init\n"
+                         "D=A\n"
+                         "@SP // SP = 256\n"
+                         "M=D\n"
+                         "D=-1\n"
+                         "@LCL // LCL = -1\n"
+                         "M=D\n"
+                         "D=D-1\n"
+                         "@ARG // ARG = -2\n"
+                         "M=D\n"
+                         "D=D-1\n"
+                         "@THIS // THIS = -3\n"
+                         "M=D\n"
+                         "D=D-1\n"
+                         "@THAT // THAT = -4\n"
+                         "M=D\n"
+                         "D=D-1\n"))
 
     def setFilename(self, fileURI):
         self.filename = os.path.basename(fileURI).partition(".vm")[0]
@@ -61,56 +62,56 @@ class Writer():
         original = command["command"]
         args = command["args"]
         if args[0] == "constant":
-            return ("@{constant} // {original}\n"
+            constant = args[1]
+            return (f"@{constant} // {original}\n"
                     "D=A\n"
                     "@SP\n"
                     "A=M\n"
                     "M=D\n"
                     "@SP\n"
-                    "M=M+1\n").format(constant=args[1], original=original)
+                    "M=M+1\n")
         elif args[0] in self.stacks:
-            return ("@{index} // {original}\n"
+            index = args[1]
+            stack = self.stacks[args[0]]
+            return (f"@{index} // {original}\n"
                     "D=A\n"
-                    "@{stack}\n"
+                    f"@{stack}\n"
                     "A=D+M\n"
                     "D=M\n"
                     "@SP\n"
                     "A=M\n"
                     "M=D\n"
                     "@SP\n"
-                    "M=M+1\n").format(index=args[1], original=original, stack=self.stacks[args[0]])
+                    "M=M+1\n")
         elif args[0] == "static":
-            output = ("@{filename}.{index} // {original}\n"
+            index = args[1]
+            output = (f"@{self.filename}.{index} // {original}\n"
                       "D=M\n"
                       "@SP\n"
                       "A=M\n"
                       "M=D\n"
                       "@SP\n"
                       "M=M+1\n")
-            output = output.format(
-                filename=self.filename, index=args[1], original=original)
             return output
         elif args[0] == "pointer":
             location = "THIS" if not int(args[1]) else "THAT"
-            output = ("@{location} // {original}\n"
+            output = (f"@{location} // {original}\n"
                       "D=M\n"
                       "@SP\n"
                       "A=M\n"
                       "M=D\n"
                       "@SP\n"
                       "M=M+1\n")
-            output = output.format(location=location, original=original)
             return output
         elif args[0] == "temp":
             index = 5+int(args[1])
-            output = ("@{index} // {original}\n"
+            output = (f"@{index} // {original}\n"
                       "D=M\n"
                       "@SP\n"
                       "A=M\n"
                       "M=D\n"
                       "@SP\n"
                       "M=M+1\n")
-            output = output.format(index=index, original=original)
             return output
 
     def c_arithmetic(self, command):
@@ -130,39 +131,45 @@ class Writer():
             "gt": "JGT"
         }
         if command["command"] in unary:  # unary operators
-            output = ("@SP // {command}\n"
+            operator = unary[command["command"]]
+            original = command["command"]
+            output = (f"@SP // {original}\n"
                       "A=M-1\n"
-                      "M={operator}M\n")
-            return output.format(operator=unary[command["command"]], command=command["command"])
+                      f"M={operator}M\n")
+            return output
         elif command["command"] in binary:  # binary operators
-            output = ("@SP // {command}\n"
+            operator = binary[command["command"]]
+            original = command["command"]
+            output = (f"@SP // {original}\n"
                       "M=M-1\n"
                       "A=M\n"
                       "D=M\n"
                       "A=A-1\n"
-                      "M=M{operation}D\n")
-            return output.format(operation=binary[command["command"]], command=command["command"])
+                      f"M=M{operator}D\n")
+            return output
         elif command["command"] in boolean:
-            output = ("@SP // {command}\n"
+            operation = boolean[command["command"]]
+            count = self.arithmeticCount
+            original = command["command"]
+            output = (f"@SP // {original}\n"
                       "M=M-1\n"
                       "A=M\n"
                       "D=M\n"
                       "A=A-1\n"
                       "D=M-D\n"
-                      "@SKIP.{count}\n"
-                      "D;{operation}\n"
+                      f"@SKIP.{count}\n"
+                      f"D;{operation}\n"
                       "@SP\n"
                       "A=M-1\n"
                       "M=0\n"
-                      "@END.{count}\n"
+                      f"@END.{count}\n"
                       "0;JMP\n"
-                      "(SKIP.{count})\n"
+                      f"(SKIP.{count})\n"
                       "@SP\n"
                       "A=M-1\n"
                       "M=-1\n"
-                      "(END.{count})\n")
-            output = output.format(
-                operation=boolean[command["command"]], count=self.arithmeticCount, command=command["command"])
+                      f"(END.{count})\n")
+
             self.arithmeticCount += 1
             return output
         else:
@@ -175,9 +182,9 @@ class Writer():
         original = command["command"]
         if stack in self.stacks:
             stack = self.stacks[stack]
-            output = ("@{index} // {original}\n"
+            output = (f"@{index} // {original}\n"
                       "D=A\n"
-                      "@{stack}\n"
+                      f"@{stack}\n"
                       "D=D+M\n"
                       "@R13\n"
                       "M=D\n"
@@ -188,59 +195,68 @@ class Writer():
                       "@R13\n"
                       "A=M\n"
                       "M=D\n")
-            output = output.format(original=original, stack=stack, index=index)
+
         elif stack == "static":
-            output = ("@SP // {original}\n"
+            output = (f"@SP // {original}\n"
                       "M=M-1\n"
                       "A=M\n"
                       "D=M\n"
-                      "@{filename}.{index}\n"
+                      f"@{self.filename}.{index}\n"
                       "M=D\n")
-            output = output.format(
-                original=original, filename=self.filename, index=index)
+
         elif stack == "pointer":
             if index == "0":
                 stack = "THIS"
             elif index == "1":
                 stack = "THAT"
-            output = ("@SP // {original}\n"
+            else:
+                raise Exception(
+                    f'pointer index must be 0 or 1: "{command["command"]}"')
+            output = (f"@SP // {original}\n"
                       "M=M-1\n"
                       "A=M\n"
                       "D=M\n"
-                      "@{stack}\n"
+                      f"@{stack}\n"
                       "M=D\n")
-            output = output.format(original=original, stack=stack)
+
         elif stack == "temp":
             stack = int(index)+5
-            output = ("@SP // {original}\n"
+            output = (f"@SP // {original}\n"
                       "M=M-1\n"
                       "A=M\n"
                       "D=M\n"
-                      "@{stack}\n"
+                      f"@{stack}\n"
                       "M=D\n")
-            output = output.format(original=original, stack=stack)
+
         else:
-            raise Exception('Invalid pop location: "{original}"'.format(original=command["command"]))
+            raise Exception(f'Invalid pop location: "{command["command"]}"')
         return output
 
     def c_label(self, command):
-        return "({label}) //{original}\n".format(label=command["args"][0], original=command["command"])
+        label = command["args"][0]
+        original = command["command"]
+        return f"({label}) //{original}\n"
 
     def c_goto(self, command):
-        return ("@{label} // {original}\n"
-                "0;JMP\n").format(label=command["args"][0], original=command["command"])
+        label = command["args"][0]
+        original = command["command"]
+        return (f"@{label} // {original}\n"
+                "0;JMP\n")
 
     def c_if(self, command):
-        return ("@SP // {original}\n"
+        label = command["args"][0]
+        original = command["command"]
+        return (f"@SP // {original}\n"
                 "M=M-1\n"
                 "A=M\n"
                 "D=M\n"
-                "@{label}\n"
-                "D;JNE\n").format(label=command["args"][0], original=command["command"])
+                f"@{label}\n"
+                "D;JNE\n")
 
     def c_function(self, command):
-        output = "({functionName}) // {original}\n".format(
-            functionName=command["args"][0], original=command["command"])
+        functionName = command["args"][0]
+        original = command["command"]
+        output = f"({functionName}) // {original}\n"
         nVars = ("@SP\n"
                  "M=M+1\n"
                  "A=M-1\n"
@@ -248,7 +264,8 @@ class Writer():
         return output + nVars
 
     def c_return(self, command):
-        output = ("@LCL // {original}\n"
+        original = command["command"]
+        output = (f"@LCL // {original}\n"
                   "D=M\n"
                   "@14 // temp variable endFrame\n"
                   "M=D\n"
@@ -298,15 +315,19 @@ class Writer():
                   "A=M\n"
                   "0;JMP\n")
 
-        return output.format(original=command["command"])
+        return output
 
     def c_call(self, command):
         functionName, nArgs = command["args"]
-        
+
         callNo = self.functionCalls[functionName]
         self.functionCalls[functionName] += 1
+        functionName = functionName
+        argsIndex = int(nArgs)+5
+        original = command["command"]
+        callNo = callNo
 
-        output = ("@{functionName}$ret.{callNo} // push returnAddr // {original}\n"
+        output = (f"@{functionName}$ret.{callNo} // push returnAddr // {original}\n"
                   "D=A\n"
                   "@SP\n"
                   "M=M+1\n"
@@ -336,7 +357,7 @@ class Writer():
                   "M=M+1\n"
                   "A=M-1\n"
                   "M=D\n"
-                  "@{argsIndex} // ARG = SP-5-nArgs\n"
+                  f"@{argsIndex} // ARG = SP-5-nArgs\n"
                   "D=A\n"
                   "@SP\n"
                   "D=M-D\n"
@@ -346,7 +367,7 @@ class Writer():
                   "D=M\n"
                   "@LCL\n"
                   "M=D\n"
-                  "@{functionName}\n"
+                  f"@{functionName}\n"
                   "0;JMP\n"
-                  "({functionName}$ret.{callNo})\n")
-        return output.format(functionName=functionName, argsIndex=int(nArgs)+5, original=command["command"], callNo=callNo)
+                  f"({functionName}$ret.{callNo})\n")
+        return output

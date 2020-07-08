@@ -6,7 +6,7 @@ class Parser():
         self.commands = self.getCommands(fileURI)
     
     def clean(self, line):
-        'Removes line comments from command'
+        'Removes line comments and leading and trailling whitespace from command'
         return line.partition("//")[0].strip()
 
     def getCommands(self, fileURI):
@@ -21,7 +21,7 @@ class Parser():
 
     def process(self, line):
         '''Parses clean (no comments, no leading or trailling whitespace)
-        commands into command tuples'''
+        commands into command dicts'''
         parts = line.split()
         return {"command": line,
                 "commandType": self.commandTypes(parts[0]),
